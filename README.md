@@ -119,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 2 }
-      - run: pipx install "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"
+      - run: pipx install "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"
       - run: mergeclear scan --project payments-service --commit ${{ github.sha }} --branch main --push --wait
         env:
           MERGECLEAR_SERVER: ${{ secrets.MERGECLEAR_SERVER }}
@@ -132,7 +132,7 @@ mergeclear-upload:
   image: python:3.12
   rules: [{ if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' }]
   script:
-    - pip install "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"
+    - pip install "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"
     - mergeclear scan --project payments-service --commit $CI_COMMIT_SHA --branch $CI_COMMIT_BRANCH --push --wait
 ```
 
@@ -145,7 +145,7 @@ stage('Mergeclear') {
     MERGECLEAR_API_KEY = credentials('mergeclear-api-key')
   }
   steps {
-    sh 'pip install --user "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"'
+    sh 'pip install --user "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"'
     sh '~/.local/bin/mergeclear scan --project payments-service --commit "$GIT_COMMIT" --branch main --push --wait'
   }
 }
@@ -160,7 +160,7 @@ enough history for the base ref to exist.
 
 **Any CI / shell**
 ```bash
-pip install "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"
+pip install "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"
 git fetch origin main
 mergeclear check --base origin/main --format markdown --out mergeclear.md
 ```
@@ -169,7 +169,7 @@ mergeclear check --base origin/main --format markdown --out mergeclear.md
 ```yaml
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
-- run: pipx install "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"
+- run: pipx install "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"
 - run: mergeclear check --base origin/${{ github.base_ref }} --format markdown --out mergeclear.md
 ```
 
@@ -180,7 +180,7 @@ mergeclear:
   variables: { GIT_DEPTH: 0 }
   rules: [{ if: '$CI_PIPELINE_SOURCE == "merge_request_event"' }]
   script:
-    - pip install "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"
+    - pip install "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
     - mergeclear check --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --format markdown --out mergeclear.md
   artifacts: { paths: [mergeclear.md], when: always }
@@ -190,7 +190,7 @@ mergeclear:
 ```groovy
 stage('Mergeclear') {
   steps {
-    sh 'pip install --user "git+https://github.com/ManojVihari/RepoPilot.git@v0.3.0#subdirectory=scanner"'
+    sh 'pip install --user "git+https://github.com/ManojVihari/MergeClear.git@v0.3.0#subdirectory=scanner"'
     sh 'git fetch origin main && ~/.local/bin/mergeclear check --base origin/main'
   }
 }
