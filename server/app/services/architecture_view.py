@@ -17,7 +17,7 @@ def application_model(document: Optional[dict]) -> Optional[dict]:
     """
     if not document:
         return None
-    models = [m for m in ((document.get("architecture") or {}).get(f) for f in ("spring", "fastapi")) if m]
+    models = [m for m in ((document.get("architecture") or {}).get(f) for f in ("spring", "fastapi", "aspnet")) if m]
     if not models:
         # a framework this server does not know yet: show the first model that looks like an application model
         models = [m for m in (document.get("architecture") or {}).values() if isinstance(m, dict) and "graph" in m]
@@ -340,7 +340,8 @@ def shared_resources(model: dict, endpoint: dict) -> List[dict]:
 # per-module persistence frameworks are an implementation detail of the service
 ACCESS_FRAMEWORKS = {"mybatis", "mybatis-plus", "jpa", "hibernate", "jdbc", "jdbctemplate",
                      "spring-data-jpa", "spring-data-jdbc", "r2dbc", "jooq",
-                     "sqlalchemy", "sqlmodel", "tortoise", "peewee", "databases", "beanie", "mongoengine", "odmantic", "ormar", "prisma"}
+                     "sqlalchemy", "sqlmodel", "tortoise", "peewee", "databases", "beanie", "mongoengine", "odmantic", "ormar", "prisma",
+                     "efcore", "dapper", "sql", "marten", "ravendb", "nhibernate"}
 
 CALL_KINDS = {"http", "routes", "calls", "injects", "feign"}
 MESSAGING_KINDS = {"publishes", "subscribes", "consumes", "listens", "delivers", "sends", "triggers"}
@@ -355,7 +356,7 @@ TYPE_LABELS = {
     "infrastructure": "Platform", "component": "Component",
 }
 STEREOTYPE_LABELS = {
-    "rest_controller": "API router", "controller": "Controller", "service": "Service", "application": "Application",
+    "rest_controller": "API controller / router", "controller": "Controller", "service": "Service", "application": "Application",
     "configuration_properties": "Settings",
     "repository": "Repository", "feign_client": "HTTP client", "component": "Component",
     "listener": "Listener", "scheduler": "Scheduled job", "mapper": "Mapper",

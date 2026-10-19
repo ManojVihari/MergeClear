@@ -6,6 +6,16 @@ a release is made by pushing the tag `vX.Y.Z` (see README "Releasing").
 ## [0.3.0] - unreleased
 
 ### Added
+- C# / ASP.NET Core at the depth of Spring and FastAPI (new dependency: `tree-sitter-c-sharp`). Controllers (attribute and
+  conventional routing, `[controller]`/`[action]` tokens, API versions, inherited attributes) and Minimal APIs (`MapGroup`
+  chains and conventions, endpoint extension methods, `UseEndpoints`, method groups, lambdas) get parameters with their
+  binding source, request and response schemas (DataAnnotations, FluentValidation, records, generics, `System.Text.Json`
+  naming), status codes (`Ok`/`NotFound`/`TypedResults`, `[ProducesResponseType]`, exception middleware and
+  `IExceptionHandler`), `[Authorize]`/policy/`RequireAuthorization` security, and the call chain through the DI container
+  (interfaces, generic repositories bound to `IRepository<Order>`, MediatR handlers, MassTransit consumers) down to
+  EF Core tables, Dapper SQL, MongoDB, Redis, brokers, HTTP clients (`BaseAddress`, `IOptions<T>` resolved from
+  `appsettings.json`), storage, e-mail and search. `architecture.aspnet` mirrors the other models and the server shows it,
+  alone or together with Spring and FastAPI models of the same repository.
 - FastAPI at the depth of Spring. The scanner builds a model of the application (apps, routers,
   `include_router` prefixes and dependencies, mounts, factories) and reports for every route:
   parameters including those of `Depends` chains, Pydantic/SQLModel request and response schemas with

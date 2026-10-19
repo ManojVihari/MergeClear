@@ -107,6 +107,7 @@
                 {% if r.server_port %}<dt>Port</dt><dd>{{ r.server_port }}</dd>{% endif %}
                 {% if r.context_path %}<dt>Context path</dt><dd><code>{{ r.context_path }}</code></dd>{% endif %}
                 {% if m.java_version or m.spring_boot_version %}<dt>Runtime</dt><dd>{% if m.java_version %}Java {{ m.java_version }}{% endif %}{% if m.spring_boot_version %} · Spring Boot {{ m.spring_boot_version }}{% endif %}</dd>{% endif %}
+                {% if m.language == 'csharp' %}<dt>Runtime</dt><dd>.NET{% if m.dotnet_version %} {{ m.dotnet_version }}{% endif %}{% if m.is_application %} · ASP.NET Core{% endif %}{% if m.nullable %} · nullable enabled{% endif %}</dd>{% endif %}
                 {% if m.language == 'python' %}<dt>Runtime</dt><dd>Python{% if m.python_version %} {{ m.python_version }}{% endif %}{% if m.is_application %} · FastAPI{% if m.fastapi_version %} {{ m.fastapi_version }}{% endif %}{% endif %}{% if m.pydantic %} · Pydantic {{ m.pydantic }}{% endif %}</dd>{% endif %}
                 {% for ds in r.datasources or [] %}<dt>Database{% if ds.profile != 'default' %} ({{ ds.profile }}){% endif %}</dt><dd>{{ ds.type }}{% if ds.host %} @ {{ ds.host }}{% endif %}{% if ds.database %}/{{ ds.database }}{% endif %}</dd>{% endfor %}
                 {% if r.mongodb %}<dt>MongoDB</dt><dd>{{ r.mongodb.host or r.mongodb.uri }}{% if r.mongodb.database %}/{{ r.mongodb.database }}{% endif %}</dd>{% endif %}

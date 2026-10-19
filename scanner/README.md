@@ -49,7 +49,7 @@ without a running server.
 }
 ```
 
-### `routes[]` - endpoints (Spring and FastAPI)
+### `routes[]` - endpoints (Spring, FastAPI and ASP.NET Core)
 
 A full scan lists every endpoint. With `--commit`/`--since` only endpoints
 affected by the change are listed, and impact is precise: git diff
@@ -152,3 +152,36 @@ and classes, followed through the call graph, and a change to a Pydantic model, 
 dependency, a router `prefix` or an `include_router` line reports the endpoints it affects with
 `change_reasons` and `breaking_changes`. Tests (`tests/`, `test_*.py`, `conftest.py`) and
 migrations are excluded. Nothing is imported or run.
+
+## C# / ASP.NET Core
+
+`mergeclear` reads ASP.NET Core solutions without building them. It interprets the registration code (`Program.cs`,
+`Startup.Configure`, endpoint extension methods) to find every route with the prefixes, tags and authorization of its
+`MapGroup` chain, and reads controllers from their attributes.
+
+| Field | ASP.NET Core source |
+|---|---|
+| `path`, `tags`, `handler`, `style` | `[Route]`/`[HttpGet("...")]` with `[controller]`, `[action]`, `[area]` and `{version:apiVersion}` tokens, conventional routing (`MapControllerRoute`), `MapGet`/`MapPost`/`MapMethods`, `MapGroup` prefixes, `MapHub` (`controller`, `minimal-api` or `signalr-hub`) |
+| `params[]` | `[FromRoute]`/`[FromQuery]`/`[FromHeader]`/`[FromForm]`/`[FromBody]`, implicit binding (route, query, body for `[ApiController]`), `[AsParameters]` and `[FromQuery] Model` expanded to their properties, `IFormFile` as `multipart`, optionality from `?`, defaults and `[Required]`; injected services, `HttpContext` and `CancellationToken` are not parameters |
+| `request_body`, `response` | Classes, records (positional parameters and `[property: ...]` attributes), enums, generics (`PagedResult<T>`), collections; `[Required]`, `[StringLength]`, `[Range]`, `[EmailAddress]`, `[RegularExpression]`, `required`, nullable reference types, FluentValidation `RuleFor(...)` rules, `[JsonPropertyName]`/`[JsonIgnore]`, camelCase unless `PropertyNamingPolicy = null`; return types unwrap `Task`, `ActionResult<T>`, `Results<Ok<T>, NotFound>`, otherwise `[ProducesResponseType]`, `.Produces<T>()` or what `Ok(x)`/`Created(...)` return |
+| `status_codes[]`, `exceptions[]` | Result helpers (`Ok`, `NotFound`, `CreatedAtAction`, `StatusCode(n)`, `Problem`, `TypedResults.*`, `new OkObjectResult`), `[ProducesResponseType]`, `[ApiController]` 400, `[Authorize]` 401/403, rate limiting 429, and exceptions thrown anywhere in the chain mapped by exception middleware (`catch`), `IExceptionHandler`/filters (`switch`, `is`) or the exception class itself (`base(404, ...)`) |
+| `security` | `[Authorize(Roles, Policy)]`, `[AllowAnonymous]` (class, base class, method), `RequireAuthorization(...)`/`AllowAnonymous()` on groups and routes, `AddPolicy(...)` roles and claims, `FallbackPolicy`, the registered authentication schemes |
+| `integrations`, `call_graph` | Calls resolved through constructor injection, `AddScoped<I, T>()`, open generics (`typeof(IRepository<>)`), base-class generics (`Repo<Item>`), extension methods, MediatR `Send`/`Publish` into their handlers, endpoint/MVC filters, `BackgroundJob.Enqueue(() => ...)` |
+
+| Kind | Libraries |
+|---|---|
+| `database` | EF Core (`DbSet`/`Set<T>()`, LINQ chains with the terminal operation, `SaveChanges`, `FromSqlRaw`/`ExecuteSqlRaw`; tables from `[Table]`, `ToTable`, `IEntityTypeConfiguration`, the `DbSet` property name), Dapper and ADO.NET SQL, MongoDB, Cosmos DB, DynamoDB, Marten |
+| `cache` | `IDistributedCache`, `IMemoryCache`, `HybridCache`, StackExchange.Redis, `[OutputCache]`/`[ResponseCache]` |
+| `messaging` | MassTransit, NServiceBus, Kafka (Confluent), RabbitMQ, Azure Service Bus / Event Hubs, SQS/SNS, Pub/Sub, Dapr, Hangfire; `IConsumer<T>` and handlers become listeners, `BackgroundService`/Quartz/Hangfire recurring jobs become scheduled jobs |
+| `http` | `HttpClient` (typed, named, `IHttpClientFactory`; `BaseAddress` from `AddHttpClient`, `IOptions<T>` and `appsettings.json`), Refit interfaces, RestSharp |
+| `storage`, `email`, `search`, `resilience` | S3 / Azure Blob / GCS, SMTP / SendGrid / FluentEmail, Elasticsearch / OpenSearch / Azure Search, Polly handlers and rate-limit attributes |
+
+`architecture.aspnet` has the same keys as the other models: `modules[]` (one per `.csproj` folder: target frameworks, nullable,
+packages with central versions, runtime from `appsettings*.json`, `launchSettings.json` and docker-compose; class libraries use
+the configuration of the web project that references them), `components[]` (controllers, endpoint groups, services,
+repositories/`DbContext`s, clients, consumers, options classes), `data_model`, `integrations`, `security` (schemes, policies,
+middleware), `exception_handling` and `graph`.
+
+With `--commit`/`--since`, changed lines are mapped to methods and types and followed through the call graph; a changed DTO, entity,
+route attribute, `MapGroup`/`MapGet` statement or service reports the endpoints it affects with `change_reasons` and `breaking_changes`.
+Test projects (`*.Tests`), `bin/` and `obj/` are excluded. Nothing is compiled or run.

@@ -1558,6 +1558,17 @@ tree-sitter==0.26.0 \
     --hash=sha256:ff527388df14cb5009f9274faf78cc69a7393ae6acf3b04784b8acca249519c5 \
     --hash=sha256:ff80d4833d330a73184a3ac5132abe93c575d2dea31975c6f15c0d21fef238aa
     # via -r scanner/requirements.in
+tree-sitter-c-sharp==0.23.5 \
+    --hash=sha256:05a9256415e7f24d4f133133794a9c224c60d19f677a04e2f6a94c25090b6d65 \
+    --hash=sha256:2635c7d5ec93e59f2e831b571bed99c4cc68a5d183a0994020aa769e1b990a71 \
+    --hash=sha256:2de4ebf95ddc2e92cd3105c8a8e0e7ec646bc82f52bfaf2f3acec0fa2401ec09 \
+    --hash=sha256:3ea38fb095d85d360dc5a0bec2fa605e496228876f798c9e089d5f0e72bcef46 \
+    --hash=sha256:41a28cfa3d9ea50f5629e44550a03188c8fbd5079803dfc03554b6fd594b33fa \
+    --hash=sha256:61e1981cf21b09ee547b9c4c68e64fb4394325f8fc8d5f6d50d41471eba923ea \
+    --hash=sha256:8636dc70b5a373c35c1036ed5de98e801f2e4d105ae41e2e20b6804c36e3bf33 \
+    --hash=sha256:a75994a11f6fed3f5b8c36ad6a00e5dc43205bd912c43af3a2a54fdf649664eb \
+    --hash=sha256:aa88a780204cd153c4c1ae2d59c654cee1402212fa0d069823d6d34301587438
+    # via -r scanner/requirements.in
 tree-sitter-java==0.23.5 \
     --hash=sha256:1ee45e790f8d31d416bc84a09dac2e2c6bc343e89b8a2e1d550513498eedfde7 \
     --hash=sha256:24acd59c4720dedad80d548fe4237e43ef2b7a4e94c8549b0ca6e4c4d7bf6e69 \
