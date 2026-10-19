@@ -16,6 +16,13 @@ FIXTURES = Path(__file__).resolve().parents[2] / "scanner" / "tests" / "fixtures
 SPRING_SCAN = Path(__file__).parent / "fixtures" / "spring_shop_scan.json"
 
 
+def table_row(doc, field):
+    """(type, required, {rules}) of a field's row; the stored JSON may reorder keys (Postgres jsonb), so rules are a set."""
+    line = next(l for l in doc.splitlines() if l.startswith(f"| {field} |"))
+    _, _, type_, required, rules, _ = [c.strip() for c in line.split("|")]
+    return type_, required, set(rules.split(", "))
+
+
 def scan(path, commit, repository):
     payload = json.loads(json.dumps(Scanner().scan_full(str(path), commit)))
     payload["repository"] = repository
@@ -49,7 +56,7 @@ def test_fastapi_scan_is_documented_and_architecture_stored(client, isolated_sto
     doc = docs_store.read_version("fastapi-shop", "orders.create_order", 1)
     assert "- **Path:** `/api/v1/orders`" in doc
     assert "| 402 | PAYMENT_REQUIRED | PaymentDeclined (main.payment_declined_handler) |" in doc
-    assert "| lines | list[LineItem] | Yes | min, max, required |" in doc
+    assert table_row(doc, "lines") == ("list[LineItem]", "Yes", {"min", "max", "required"})
     assert "**Messaging** (kafka): publish to `orders.created.v1`" in doc
     assert "**HTTP call** (httpx): POST `https://api.payments.example.com/v1/charges/{order_id}`" in doc
     assert "`get_current_user`" in doc and "**authenticated**" in doc
