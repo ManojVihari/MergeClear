@@ -13,6 +13,8 @@ develop-eggs/
 dist/
 downloads/
 eggs/
+**/database/*
+**/server/docs/*
 .eggs/
 lib/
 lib64/

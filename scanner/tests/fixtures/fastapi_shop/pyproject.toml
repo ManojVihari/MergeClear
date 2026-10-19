@@ -1,0 +1,22 @@
+[project]
+name = "shop-service"
+version = "1.4.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "sqlalchemy>=2.0",
+    "psycopg2-binary",
+    "redis>=5",
+    "celery>=5.3",
+    "httpx",
+    "aiokafka",
+    "boto3",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]

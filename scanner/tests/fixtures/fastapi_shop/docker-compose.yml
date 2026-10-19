@@ -1,0 +1,12 @@
+services:
+  db:
+    image: postgres:16
+  cache:
+    image: redis:7
+  backend:
+    build: .
+    depends_on:
+      - db
+      - cache
+    environment:
+      - PORT=8000

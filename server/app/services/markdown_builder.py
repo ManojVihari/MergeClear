@@ -216,7 +216,8 @@ class MarkdownBuilder:
 
         md = "## Security\n"
         for a in security.get("annotations") or []:
-            md += f"- `@{a.get('annotation')}`"
+            name = a.get("annotation")
+            md += f"- `{name}`" if name in ("Depends", "Security") else f"- `@{name}`"
             if a.get("expression"):
                 md += f" `{a['expression']}`"
             md += f" ({a.get('level')})\n"
