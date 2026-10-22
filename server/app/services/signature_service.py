@@ -21,7 +21,7 @@ class SignatureService:
 
         # The scanner sends `params`/`errors`; `parameters` is the older name.
         # Only status *codes* are contract; their detected source is not.
-        parameters = route.parameters or route.params or []
+        parameters = [self._contract_parameter(p) for p in (route.parameters or route.params or [])]
         codes = sorted({s.code for s in (route.status_codes or [])})
 
         contract = {
@@ -38,6 +38,14 @@ class SignatureService:
             contract["response"] = {"body_type": response.get("body_type"), "schema": response.get("schema")}
 
         return contract
+
+    # which dependency supplies a parameter, and its description, are documentation, not contract
+    NON_CONTRACT_PARAMETER_KEYS = ("via", "description")
+
+    def _contract_parameter(self, parameter):
+        if isinstance(parameter, dict):
+            return {k: v for k, v in parameter.items() if k not in self.NON_CONTRACT_PARAMETER_KEYS}
+        return parameter
 
     def _sorted(self, items):
         normalized = [self._normalize_obj(i) for i in items]

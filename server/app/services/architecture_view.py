@@ -8,11 +8,118 @@ from typing import Dict, List, Optional
 STRUCTURAL_EDGES = {"contains", "injects", "calls"}
 
 
-def spring_model(document: Optional[dict]) -> Optional[dict]:
-    """The Spring application model inside a stored architecture document."""
+def application_model(document: Optional[dict]) -> Optional[dict]:
+    """
+    The application model inside a stored architecture document.
+
+    Scanners store one model per framework ({"spring": ..., "fastapi": ...}); a repository using several is shown
+    as one application.
+    """
     if not document:
         return None
-    return (document.get("architecture") or {}).get("spring")
+    models = [m for m in ((document.get("architecture") or {}).get(f) for f in ("spring", "fastapi", "aspnet")) if m]
+    if not models:
+        # a framework this server does not know yet: show the first model that looks like an application model
+        models = [m for m in (document.get("architecture") or {}).values() if isinstance(m, dict) and "graph" in m]
+    if not models:
+        return None
+    return models[0] if len(models) == 1 else merge_models(models)
+
+
+spring_model = application_model            # name used before FastAPI support
+
+
+def _extend_unique(target: list, items: list, key=None):
+    seen = {key(x) if key else repr(x) for x in target}
+    for item in items:
+        k = key(item) if key else repr(item)
+        if k not in seen:
+            seen.add(k)
+            target.append(item)
+
+
+def merge_models(models: List[dict]) -> dict:
+    """Combine the application models of several frameworks into one."""
+    first, rest = models[0], models[1:]
+    merged = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v) for k, v in first.items()}
+
+    for model in rest:
+        _extend_unique(merged.setdefault("modules", []), model.get("modules", []), key=lambda m: m.get("path"))
+        _extend_unique(merged.setdefault("components", []), model.get("components", []), key=lambda c: c.get("qualified_name"))
+        merged.setdefault("endpoints", []).extend(model.get("endpoints", []))
+        _extend_unique(merged.setdefault("exception_handling", []), model.get("exception_handling", []))
+
+        data, other = merged.setdefault("data_model", {}), model.get("data_model") or {}
+        for part in ("entities", "repositories"):
+            _extend_unique(data.setdefault(part, []), other.get(part, []), key=lambda x: x.get("qualified_name"))
+        tables = {t["name"]: dict(t) for t in data.get("tables", [])}
+        for t in other.get("tables", []):
+            if t["name"] in tables:
+                mine = tables[t["name"]]
+                for field in ("entities", "operations", "accessed_by", "modules"):
+                    mine[field] = sorted(set(mine.get(field, [])) | set(t.get(field, [])))
+            else:
+                tables[t["name"]] = dict(t)
+        data["tables"] = [tables[n] for n in sorted(tables)]
+
+        integ, other_integ = merged.setdefault("integrations", {}), model.get("integrations") or {}
+        for part, value in other_integ.items():
+            if isinstance(value, list):
+                _extend_unique(integ.setdefault(part, []), value)
+            elif isinstance(value, dict):
+                mine = integ.setdefault(part, {})
+                for sub, items in value.items():
+                    if isinstance(items, list):
+                        _extend_unique(mine.setdefault(sub, []), items)
+
+        sec, other_sec = merged.setdefault("security", {}), model.get("security") or {}
+        sec["enabled"] = bool(sec.get("enabled") or other_sec.get("enabled"))
+        for part in ("technologies", "mechanisms", "configured_in"):
+            sec[part] = sorted(set(sec.get(part, [])) | set(other_sec.get(part, [])))
+        _extend_unique(sec.setdefault("url_rules", []), other_sec.get("url_rules", []))
+        sec["endpoints_with_method_security"] = sec.get("endpoints_with_method_security", 0) + other_sec.get("endpoints_with_method_security", 0)
+        sec["csrf_disabled"] = bool(sec.get("csrf_disabled")) and bool(other_sec.get("csrf_disabled", True))
+
+        graph, other_graph = merged.setdefault("graph", {"nodes": [], "edges": []}), model.get("graph") or {}
+        _extend_unique(graph.setdefault("nodes", []), other_graph.get("nodes", []), key=lambda n: n["id"])
+        _extend_unique(graph.setdefault("edges", []), other_graph.get("edges", []), key=lambda e: (e["from"], e["to"], e["kind"]))
+
+        summary, other_summary = merged.setdefault("summary", {}), model.get("summary") or {}
+        for part in ("modules", "endpoints", "entities", "repositories", "feign_clients", "message_listeners", "scheduled_jobs", "types"):
+            summary[part] = (summary.get(part) or 0) + (other_summary.get(part) or 0)
+        components = dict(summary.get("components") or {})
+        for name, count in (other_summary.get("components") or {}).items():
+            components[name] = components.get(name, 0) + count
+        summary["components"] = components
+        technologies = {k: set(v) for k, v in (summary.get("technologies") or {}).items()}
+        for category, techs in (other_summary.get("technologies") or {}).items():
+            technologies.setdefault(category, set()).update(techs)
+        summary["technologies"] = {k: sorted(v) for k, v in sorted(technologies.items())}
+        apps = list(summary.get("spring_boot_apps") or [])
+        _extend_unique(apps, other_summary.get("spring_boot_apps") or [])
+        summary["spring_boot_apps"] = apps
+        summary["frameworks"] = sorted(set(summary.get("frameworks") or ["spring"]) | set(other_summary.get("frameworks") or []))
+        summary["architecture_style"] = "microservices" if len(apps) > 1 else summary.get("architecture_style") or "monolith"
+
+    # destinations are derived: rebuild them from the combined producers and consumers
+    messaging = (merged.get("integrations") or {}).get("messaging")
+    if isinstance(messaging, dict) and rest_has_messaging(models):
+        topics: Dict[tuple, dict] = {}
+        for p in messaging.get("producers", []):
+            key = (p.get("technology"), p.get("destination"))
+            topics.setdefault(key, {"technology": key[0], "destination": key[1], "producers": [], "consumers": []})["producers"].append(p.get("source"))
+        for c in messaging.get("consumers", []):
+            for dest in c.get("destinations") or [None]:
+                key = (c.get("technology"), dest)
+                topics.setdefault(key, {"technology": key[0], "destination": dest, "producers": [], "consumers": []})["consumers"].append(c.get("handler"))
+        messaging["destinations"] = sorted(
+            ({**v, "producers": sorted(set(filter(None, v["producers"]))), "consumers": sorted(set(filter(None, v["consumers"])))}
+             for v in topics.values()), key=lambda v: (str(v["technology"]), str(v["destination"])))
+    return merged
+
+
+def rest_has_messaging(models: List[dict]) -> bool:
+    return any(isinstance((m.get("integrations") or {}).get("messaging"), dict) for m in models)
 
 
 # ============================
@@ -232,7 +339,9 @@ def shared_resources(model: dict, endpoint: dict) -> List[dict]:
 
 # per-module persistence frameworks are an implementation detail of the service
 ACCESS_FRAMEWORKS = {"mybatis", "mybatis-plus", "jpa", "hibernate", "jdbc", "jdbctemplate",
-                     "spring-data-jpa", "spring-data-jdbc", "r2dbc", "jooq"}
+                     "spring-data-jpa", "spring-data-jdbc", "r2dbc", "jooq",
+                     "sqlalchemy", "sqlmodel", "tortoise", "peewee", "databases", "beanie", "mongoengine", "odmantic", "ormar", "prisma",
+                     "efcore", "dapper", "sql", "marten", "ravendb", "nhibernate"}
 
 CALL_KINDS = {"http", "routes", "calls", "injects", "feign"}
 MESSAGING_KINDS = {"publishes", "subscribes", "consumes", "listens", "delivers", "sends", "triggers"}
@@ -247,7 +356,8 @@ TYPE_LABELS = {
     "infrastructure": "Platform", "component": "Component",
 }
 STEREOTYPE_LABELS = {
-    "rest_controller": "REST controller", "controller": "Controller", "service": "Service",
+    "rest_controller": "API controller / router", "controller": "Controller", "service": "Service", "application": "Application",
+    "configuration_properties": "Settings",
     "repository": "Repository", "feign_client": "HTTP client", "component": "Component",
     "listener": "Listener", "scheduler": "Scheduled job", "mapper": "Mapper",
 }

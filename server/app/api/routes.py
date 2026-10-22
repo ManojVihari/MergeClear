@@ -13,7 +13,7 @@ from app import auth, jobs, limits
 from app.api import auth_routes
 from app.services import docs_store, ui_data
 from app.services.html_safety import clean_html
-from app.services.architecture_view import layered_component_view, layered_system_view
+from app.services.architecture_view import application_model, layered_component_view, layered_system_view
 from app.services.architecture_store import has_architecture, load_architecture
 from app.services.qa_plan_service import QAPlanService
 from app.services.llm_service import summarize_changes, search_apis_rag, answer_question_based_on_docs
@@ -460,7 +460,7 @@ def _render_doc_page(request, repo, api, version, md_content):
 def architecture_page(request: Request, repo: str):
     """Application model of a repository: system graph, modules, components, data, messaging."""
     document = load_architecture(repo)
-    model = (document or {}).get("architecture", {}).get("spring") if document else None
+    model = application_model(document)
 
     if model is None:
         return _not_found(
@@ -773,7 +773,7 @@ def layered_architecture_api(repo: str, module: str = None):
     """Column layout of the system (or of one module's components) for the architecture page."""
     if not docs_store.is_safe_name(repo):
         return JSONResponse({"error": "invalid repository"}, status_code=400)
-    model = (load_architecture(repo) or {}).get("architecture", {}).get("spring")
+    model = application_model(load_architecture(repo))
     if model is None:
         return JSONResponse({"error": f"No architecture stored for '{repo}'"}, status_code=404)
     view = layered_component_view(model, module) if module is not None else layered_system_view(model)

@@ -21,9 +21,19 @@ It has two parts:
   into versioned API docs (written by your local Ollama model), change history
   and diffs, impact analysis across services, an architecture map and QA plans.
 
-Language support: Java / Spring in depth (Spring MVC, Spring Cloud Gateway, Feign, RestTemplate/WebClient, JPA/JDBC, MyBatis, Redis,
-Spring Cache, Kafka, RabbitMQ, SQS, Spring Security, Maven and Gradle
-multi-module builds); Python FastAPI at a basic level.
+Language support, all in depth:
+
+- **Java / Spring**: Spring MVC, Spring Cloud Gateway, Feign, RestTemplate/WebClient, JPA/JDBC, MyBatis, Redis,
+  Spring Cache, Kafka, RabbitMQ, SQS, Spring Security, Maven and Gradle multi-module builds.
+- **Python / FastAPI**: routers and `include_router` chains, `Depends` (parameters, security schemes, scopes), Pydantic
+  v1/v2 and SQLModel schemas, `HTTPException` and exception handlers, SQLAlchemy/SQLModel/Mongo/Tortoise,
+  Redis, Celery, Kafka, RabbitMQ, httpx/requests, `pyproject`/`requirements` and `.env`/`Settings`/docker-compose
+  configuration, multi-project repositories.
+- **C# / ASP.NET Core**: MVC controllers (attribute and conventional routing, API versioning) and Minimal APIs (`MapGroup`
+  chains, extension methods, `[AsParameters]`, `TypedResults`), DataAnnotations and FluentValidation, `[Authorize]` policies,
+  DI-aware call chains (interface to implementation, generic repositories, MediatR), EF Core / Dapper / MongoDB, Redis,
+  MassTransit / Kafka / RabbitMQ / Service Bus, `HttpClient` with `appsettings` values, `.sln` / `.csproj` /
+  `Directory.Packages.props` and multi-project solutions.
 
 ---
 

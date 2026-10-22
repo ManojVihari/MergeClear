@@ -6,7 +6,7 @@ version files and the stored architecture model.
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from app.services import docs_store
+from app.services import architecture_view, docs_store
 from app.services.architecture_store import has_architecture, load_architecture
 from mergeclear import contracts
 
@@ -123,7 +123,7 @@ def repo_summary(repo: str, items: Optional[List[dict]] = None) -> dict:
 
     if summary["has_architecture"]:
         document = load_architecture(repo) or {}
-        model = (document.get("architecture") or {}).get("spring") or {}
+        model = architecture_view.application_model(document) or {}
         s = model.get("summary") or {}
         technologies = s.get("technologies") or {}
         summary["architecture"] = {

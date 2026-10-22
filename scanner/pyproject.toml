@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "Manoj Vihari" }]
-keywords = ["api", "breaking-changes", "contract", "spring", "fastapi", "ci", "static-analysis"]
+keywords = ["api", "breaking-changes", "contract", "spring", "fastapi", "aspnet", "dotnet", "ci", "static-analysis"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -32,6 +32,7 @@ dependencies = [
     "tree-sitter>=0.25,<0.27",
     "tree-sitter-java>=0.23,<0.24",
     "tree-sitter-python>=0.23,<0.26",
+    "tree-sitter-c-sharp>=0.23,<0.24",
     "pyyaml>=6.0,<7",
 ]
 

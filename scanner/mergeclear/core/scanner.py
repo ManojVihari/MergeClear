@@ -7,7 +7,7 @@ from mergeclear.core.plugin_manager import PluginManager
 logger = logging.getLogger(__name__)
 
 SCANNER_VERSION = "2.0"
-SOURCE_EXTENSIONS = (".py", ".java")
+SOURCE_EXTENSIONS = (".py", ".java", ".cs")
 
 
 class Scanner:

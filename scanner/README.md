@@ -49,7 +49,7 @@ without a running server.
 }
 ```
 
-### `routes[]` - endpoints (Spring)
+### `routes[]` - endpoints (Spring, FastAPI and ASP.NET Core)
 
 A full scan lists every endpoint. With `--commit`/`--since` only endpoints
 affected by the change are listed, and impact is precise: git diff
@@ -109,3 +109,79 @@ unresolved parts appear as `{name}` placeholders.
 Test sources (`src/test`, `src/it`) are excluded. Nothing is executed: values
 only known at runtime (environment variables without defaults, values built
 from method parameters) stay as placeholders.
+
+## FastAPI
+
+`mergeclear` reads FastAPI applications with the same depth as Spring ones. It
+follows the structure of the code, not just the decorators: apps, `APIRouter`s,
+`include_router(..., prefix=)` chains (also in loops and factories such as
+`create_app()`), `app.mount(...)` sub-applications, `add_api_route`, class-based
+views and `root_path`. A router included twice yields one endpoint with both `paths`.
+
+What a route reports, in the same fields as Spring:
+
+| Field | FastAPI source |
+|---|---|
+| `path`, `paths`, `context_path`, `tags` | decorator path + router `prefix` + every `include_router` prefix; `FastAPI(root_path=)` |
+| `params[]` | the signature **and** every dependency's: `Query`/`Path`/`Header`/`Cookie`/`Body`/`Form`/`File`, `Annotated[..., Query(ge=1)]` and aliases such as `SessionDep`, Pydantic models as body or as `Query()`/`Form()` groups, `OAuth2PasswordRequestForm`, constraints, defaults, header names (`x_token` → `x-token`, `convert_underscores`) |
+| `request_body`, `response` | Pydantic v1/v2 models, SQLModel, dataclasses and `TypedDict`: `Field(...)` constraints, `EmailStr`/`PositiveInt`/`conint`, `@field_validator`, enums and `Literal`, nested models, `list[...]`/`dict[...]`, generics (`Page[Item]`), inheritance, `response_model` (and `_exclude`/`_include`, `Field(exclude=True)`), return annotations, `response_class`, streaming |
+| `status_codes[]`, `exceptions[]` | `status_code=`, `responses={...}`, `raise HTTPException(...)` anywhere in the call chain, `HTTPException` subclasses, `@app.exception_handler(...)`/`add_exception_handler` (status read from the handler), `JSONResponse(status_code=)`, 422 request validation, 401 from the security scheme |
+| `security` | `Depends`/`Security` chains down to `OAuth2PasswordBearer`, `HTTPBearer`, `APIKeyHeader`, ... at app, router, include and route level; scopes and role arguments (`Depends(require_role("admin"))`) |
+| `integrations`, `call_graph` | the call chain through functions, methods, `Depends` targets, class and callable-class dependencies, dependency factories, `BackgroundTasks.add_task`, `asyncio`/thread-pool hand-offs, and base-class methods bound to their model (`CRUDBase(Item)`) |
+
+Integration detection (the inferred type of `db`, `redis_client`, `self.repo`... decides what a call is):
+
+| Kind | Libraries |
+|---|---|
+| `database` | SQLAlchemy (ORM sessions, async, Core, `text()`), SQLModel, raw drivers (`asyncpg`, `psycopg`, `sqlite3`, `aiomysql`, `databases`), MongoDB (`pymongo`, `motor`, Beanie, MongoEngine), Tortoise, Peewee, Ormar, DynamoDB; tables from `__tablename__`, `Table(...)`, SQLModel, `Meta`/`Settings` classes and SQL text |
+| `cache` | Redis (`redis`, `redis.asyncio`, `aioredis`), Memcached, `fastapi-cache`, `aiocache` |
+| `messaging` | Kafka (`aiokafka`, `kafka-python`, `confluent-kafka`), RabbitMQ (`pika`, `aio-pika`), Celery/RQ/arq/Dramatiq tasks, FastStream, NATS, SQS/SNS/EventBridge/Kinesis, Pub/Sub, MQTT; consumers, `@task`s and schedulers (APScheduler, `repeat_every`, Celery beat) become listeners and jobs |
+| `http` | `httpx`, `requests`, `aiohttp`, `urllib` (base URL of clients, `settings.X` and `.env` values resolved) |
+| `storage`, `email`, `search` | S3/GCS/Azure/MinIO, SMTP/SES/SendGrid/fastapi-mail, Elasticsearch/OpenSearch/Meilisearch |
+| `resilience`, `async`, `transaction` | `tenacity`/`backoff`/circuit breakers/`slowapi`, background tasks and executors, `commit`/`begin` |
+
+`architecture.fastapi` has the same keys as `architecture.spring`: `modules[]` (one per
+project folder with a `pyproject.toml`, `requirements*.txt`, `Pipfile` or `setup.py`; runtime derived
+from `.env` files, `Settings` classes and `docker-compose`), `components[]` (routers, services,
+repositories, clients, listeners, plain-function modules), `data_model` (entities, tables,
+relationships), `integrations`, `security` (mechanisms, CORS and other middleware),
+`exception_handling` and `graph`.
+
+With `--commit`/`--since`, impact works as for Spring: changed lines are mapped to functions
+and classes, followed through the call graph, and a change to a Pydantic model, an ORM entity, a
+dependency, a router `prefix` or an `include_router` line reports the endpoints it affects with
+`change_reasons` and `breaking_changes`. Tests (`tests/`, `test_*.py`, `conftest.py`) and
+migrations are excluded. Nothing is imported or run.
+
+## C# / ASP.NET Core
+
+`mergeclear` reads ASP.NET Core solutions without building them. It interprets the registration code (`Program.cs`,
+`Startup.Configure`, endpoint extension methods) to find every route with the prefixes, tags and authorization of its
+`MapGroup` chain, and reads controllers from their attributes.
+
+| Field | ASP.NET Core source |
+|---|---|
+| `path`, `tags`, `handler`, `style` | `[Route]`/`[HttpGet("...")]` with `[controller]`, `[action]`, `[area]` and `{version:apiVersion}` tokens, conventional routing (`MapControllerRoute`), `MapGet`/`MapPost`/`MapMethods`, `MapGroup` prefixes, `MapHub` (`controller`, `minimal-api` or `signalr-hub`) |
+| `params[]` | `[FromRoute]`/`[FromQuery]`/`[FromHeader]`/`[FromForm]`/`[FromBody]`, implicit binding (route, query, body for `[ApiController]`), `[AsParameters]` and `[FromQuery] Model` expanded to their properties, `IFormFile` as `multipart`, optionality from `?`, defaults and `[Required]`; injected services, `HttpContext` and `CancellationToken` are not parameters |
+| `request_body`, `response` | Classes, records (positional parameters and `[property: ...]` attributes), enums, generics (`PagedResult<T>`), collections; `[Required]`, `[StringLength]`, `[Range]`, `[EmailAddress]`, `[RegularExpression]`, `required`, nullable reference types, FluentValidation `RuleFor(...)` rules, `[JsonPropertyName]`/`[JsonIgnore]`, camelCase unless `PropertyNamingPolicy = null`; return types unwrap `Task`, `ActionResult<T>`, `Results<Ok<T>, NotFound>`, otherwise `[ProducesResponseType]`, `.Produces<T>()` or what `Ok(x)`/`Created(...)` return |
+| `status_codes[]`, `exceptions[]` | Result helpers (`Ok`, `NotFound`, `CreatedAtAction`, `StatusCode(n)`, `Problem`, `TypedResults.*`, `new OkObjectResult`), `[ProducesResponseType]`, `[ApiController]` 400, `[Authorize]` 401/403, rate limiting 429, and exceptions thrown anywhere in the chain mapped by exception middleware (`catch`), `IExceptionHandler`/filters (`switch`, `is`) or the exception class itself (`base(404, ...)`) |
+| `security` | `[Authorize(Roles, Policy)]`, `[AllowAnonymous]` (class, base class, method), `RequireAuthorization(...)`/`AllowAnonymous()` on groups and routes, `AddPolicy(...)` roles and claims, `FallbackPolicy`, the registered authentication schemes |
+| `integrations`, `call_graph` | Calls resolved through constructor injection, `AddScoped<I, T>()`, open generics (`typeof(IRepository<>)`), base-class generics (`Repo<Item>`), extension methods, MediatR `Send`/`Publish` into their handlers, endpoint/MVC filters, `BackgroundJob.Enqueue(() => ...)` |
+
+| Kind | Libraries |
+|---|---|
+| `database` | EF Core (`DbSet`/`Set<T>()`, LINQ chains with the terminal operation, `SaveChanges`, `FromSqlRaw`/`ExecuteSqlRaw`; tables from `[Table]`, `ToTable`, `IEntityTypeConfiguration`, the `DbSet` property name), Dapper and ADO.NET SQL, MongoDB, Cosmos DB, DynamoDB, Marten |
+| `cache` | `IDistributedCache`, `IMemoryCache`, `HybridCache`, StackExchange.Redis, `[OutputCache]`/`[ResponseCache]` |
+| `messaging` | MassTransit, NServiceBus, Kafka (Confluent), RabbitMQ, Azure Service Bus / Event Hubs, SQS/SNS, Pub/Sub, Dapr, Hangfire; `IConsumer<T>` and handlers become listeners, `BackgroundService`/Quartz/Hangfire recurring jobs become scheduled jobs |
+| `http` | `HttpClient` (typed, named, `IHttpClientFactory`; `BaseAddress` from `AddHttpClient`, `IOptions<T>` and `appsettings.json`), Refit interfaces, RestSharp |
+| `storage`, `email`, `search`, `resilience` | S3 / Azure Blob / GCS, SMTP / SendGrid / FluentEmail, Elasticsearch / OpenSearch / Azure Search, Polly handlers and rate-limit attributes |
+
+`architecture.aspnet` has the same keys as the other models: `modules[]` (one per `.csproj` folder: target frameworks, nullable,
+packages with central versions, runtime from `appsettings*.json`, `launchSettings.json` and docker-compose; class libraries use
+the configuration of the web project that references them), `components[]` (controllers, endpoint groups, services,
+repositories/`DbContext`s, clients, consumers, options classes), `data_model`, `integrations`, `security` (schemes, policies,
+middleware), `exception_handling` and `graph`.
+
+With `--commit`/`--since`, changed lines are mapped to methods and types and followed through the call graph; a changed DTO, entity,
+route attribute, `MapGroup`/`MapGet` statement or service reports the endpoints it affects with `change_reasons` and `breaking_changes`.
+Test projects (`*.Tests`), `bin/` and `obj/` are excluded. Nothing is compiled or run.

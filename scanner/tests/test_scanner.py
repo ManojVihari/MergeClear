@@ -92,8 +92,9 @@ def repo(tmp_path):
     write(tmp_path, "src/service/UserService.java", SERVICE.replace("{ }", "{ int x = 1; }"))
     git(tmp_path, "commit", "-qam", "change dto")
 
-    # Commit 3: only the FastAPI app
-    write(tmp_path, "api/items.py", FASTAPI_APP + "\n# touched\n")
+    # Commit 3: only the FastAPI app (both handlers change)
+    write(tmp_path, "api/items.py", FASTAPI_APP.replace("return load_item(item_id)", "return load_item(item_id) or {}")
+          .replace("content={}", "content={'ok': 1}"))
     git(tmp_path, "commit", "-qam", "change fastapi")
 
     return tmp_path
@@ -153,10 +154,10 @@ def test_dto_schema_matches_exact_class_name(repo):
 
 
 def test_fastapi_errors_only_come_from_http_exception(repo):
-    routes = {r["function"]: r for r in FastAPIExtractor().extract_from_file(str(repo / "api/items.py"))}
+    routes = {r["function"]: r for r in FastAPIExtractor().all_routes(str(repo))}
 
-    assert routes["get_item"]["errors"] == [404]
-    assert routes["create_item"]["errors"] == []
+    assert "NOT_FOUND" in routes["get_item"]["errors"]
+    assert "NOT_FOUND" not in routes["create_item"]["errors"]
 
 
 def test_expand_impact_handles_cycles():
